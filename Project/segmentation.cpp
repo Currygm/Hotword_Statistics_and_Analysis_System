@@ -27,12 +27,13 @@ string segmentation(string line, const string& motion) {
     else if (motion == "CutForSearch"){
         jieba.CutForSearch(line, sentence);
     }
+    sentence = cleaner(sentence);
     return Join(sentence, "/");
 }
 
-int main () {
-    string line("人工智能技术高速发展");
-    line = segmentation(line, "CutForSearch");
-    cout << line << endl;
-    return 0;
-}
+// int main () {
+//     string line("人工智能技术高速发展");
+//     line = segmentation(line, "CutForSearch");
+//     cout << line << endl;
+//     return 0;
+// }

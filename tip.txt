@@ -1,0 +1,1 @@
+g++ clean.cpp segmentation.cpp config.cpp -std=c++11 -I./cppjieba -lpthread -O2 -o clean.out
