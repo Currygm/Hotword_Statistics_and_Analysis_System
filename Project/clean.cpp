@@ -31,12 +31,12 @@ vector<string> cleaner(const vector<string>& line) {
     return result;
 }
 
-int main () {
-    const string s = "人工智能技术飞速，，。发展";
-    if (!loadstopwords("dict/stop_words.utf8")) {
-        cout << "error";
-        return 0;
-    }
-    cout << segmentation(s, "Cut(HMM)") << endl;
-    return 0;
-}
+// int main () {
+//     const string s = "人工智能技术飞速，，。发展";
+//     if (!loadstopwords("dict/stop_words.utf8")) {
+//         cout << "error";
+//         return 0;
+//     }
+//     cout << segmentation(s, "Cut(HMM)") << endl;
+//     return 0;
+// }

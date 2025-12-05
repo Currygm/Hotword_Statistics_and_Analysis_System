@@ -1,9 +1,4 @@
-#include "cppjieba/Jieba.hpp"
 #include "config.h"
-#include <vector>
-#include <cstdlib>
-#include <iostream>
-#include <sstream>
 using namespace std;
 string Join(const vector<string>& items, const string& delim) {
     ostringstream oss; 
@@ -16,7 +11,7 @@ string Join(const vector<string>& items, const string& delim) {
     return oss.str();
 }
 
-string segmentation(string line, const string& motion) {
+vector<string> segmentation(string line, const string& motion) {
     vector<string> sentence;
     if (motion == "Cut(HMM)") {
         jieba.Cut(line, sentence, true);
@@ -28,7 +23,7 @@ string segmentation(string line, const string& motion) {
         jieba.CutForSearch(line, sentence);
     }
     sentence = cleaner(sentence);
-    return Join(sentence, "/");
+    return sentence;
 }
 
 // int main () {
