@@ -12,6 +12,7 @@ string Join(const vector<string>& items, const string& delim) {
 }
 
 vector<string> segmentation(string line, const string& motion) {
+
     vector<string> sentence;
     if (motion == "Cut(HMM)") {
         jieba.Cut(line, sentence, true);
