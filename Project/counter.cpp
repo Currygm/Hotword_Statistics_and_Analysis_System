@@ -5,6 +5,7 @@ using namespace std;
 void del_count(vector<string> words) {
     for (lli i = 0; i < words.size(); i++) {
         words_count[words[i]]--;
+        topk.update(words[i]);
         if (words_count[words[i]] == 0) {
             // 当某个键的值清零时删除该元素
             words_count.erase(words[i]);
@@ -16,5 +17,6 @@ void del_count(vector<string> words) {
 void add_count(vector<string> words) {
     for (lli i = 0; i < words.size(); i++) {
         words_count[words[i]]++;
+        topk.update(words[i]);
     }
 }
