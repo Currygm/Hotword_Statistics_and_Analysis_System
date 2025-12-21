@@ -76,5 +76,6 @@
     "markdown-pdf.highlightStyle": "github.css",
     "markdown-pdf.styles": [
         "https://cdn.jsdelivr.net/npm/katex@0.16.4/dist/katex.min.css"
-    ]
+    ],
+    "C_Cpp.default.compilerPath": "/usr/bin/g++-13"
 }
