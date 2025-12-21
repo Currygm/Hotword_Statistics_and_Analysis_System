@@ -5,6 +5,7 @@ void TopK::update(const string& w) {
     // 删除旧节点（如果有）
     if (pos.find(w) != pos.end()) {
         auto it = pos[w];
+        // it是否超出S的范围，查看该元素是否在S中
         if (it != S.end() && S.find(*it) != S.end()) {  // 确保迭代器有效
             S.erase(it);
         } else {
