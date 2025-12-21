@@ -5,13 +5,19 @@ void TopK::update(const string& w) {
     // 删除旧节点（如果有）
     if (pos.find(w) != pos.end()) {
         auto it = pos[w];
-        S.erase(it);
+        if (it != S.end() && S.find(*it) != S.end()) {  // 确保迭代器有效
+            S.erase(it);
+        } else {
+            cerr << "[WARN] Iterator invalid or element not found in S for word: " << w << endl;
+        }
+        pos.erase(w);  // 从 pos 中移除无效的迭代器
     }
+
     // 插入新节点
-    if (words_count[w] == 0) return;
-    auto newi = S.insert({w, words_count[w]}).first;
-    // .first提取了指向插入元素的迭代器
-    pos[w] = newi;
+    if (words_count[w] > 0) {
+        auto newi = S.insert({w, words_count[w]}).first;
+        pos[w] = newi;
+    }
 }
 
 vector<pair<string, lli>> TopK::getTopK() {

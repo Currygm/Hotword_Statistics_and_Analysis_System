@@ -65,4 +65,6 @@ vector<string> segmentation(std::string line, const std::string& motion);
 lli time_sub(string t1, string t2);
 void del_count(vector<string> words);
 void add_count(vector<string> words);
+void init_win(EventToken e, const string& motion);
+void update_win(EventToken e, lli stride, const string& motion);
 #endif
