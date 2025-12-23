@@ -13,6 +13,13 @@
 #include <queue>
 #include <cstdlib>
 #include <set>
+#include <sys/socket.h> // Linux Socket
+#include <arpa/inet.h>  // inet_addr
+#include <unistd.h>     // close
+#include <cstring>      // strlen
+#include <thread>       // sleep_for
+#include <iomanip>
+#include <chrono>
 #include "cppjieba/Jieba.hpp"
 using namespace std;
 typedef long long lli;
@@ -51,6 +58,17 @@ public:
     void update(const string& w);
     vector<pair<string, lli>> getTopK();
 };
+
+class UdpSender {
+    int sock;
+    struct sockaddr_in serverAddr;
+public:
+    UdpSender(const char* ip, int port);
+    void sendData(const std::string& data);
+    ~UdpSender();
+};
+
+extern string generate_json(const string& timestamp, const vector<pair<string, lli>>& result);
 extern deque<stamp> windows;
 extern cppjieba::Jieba jieba;
 extern std::unordered_set<std::string> stop_words;

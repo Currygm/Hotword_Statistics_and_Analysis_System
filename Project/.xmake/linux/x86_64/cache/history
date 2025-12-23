@@ -18,6 +18,14 @@
         "xmake ",
         "xmake run main.out -i input1.txt -o output1.txt -s 120",
         "xmake ",
-        "xmake run main.out -i input1.txt -o output1.txt -s 120"
+        "xmake run main.out -i input1.txt -o output1.txt -s 120",
+        "xmake ",
+        "xmake lua /usr/share/xmake/actions/build/cleaner.lua",
+        "xmake ",
+        "xmake ",
+        "xmake ",
+        "xmake ",
+        "xmake ",
+        "xmake "
     }
 }

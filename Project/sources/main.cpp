@@ -64,24 +64,24 @@ bool parseLine(const string& line, EventToken& e) {
 
 
 int main(int argc, char* argv[]) {
-    // 定义数据文件夹前缀，相对于main.out的路径，因为最后是由main.out执行的
+    // 默认路径前缀
     const string dataDir = "data/";
 
-    // 1. 设置默认值（也加上 data/ 前缀）
-    std::string inputFile = dataDir + "input1.txt";
-    std::string outputFile = dataDir + "output.txt";
+    std::string inputFile = "input1.txt"; // 默认文件名，稍后处理路径
+    std::string outputFile = "output.txt";
     std::string motion = "Cut(HMM)";
     lli stride = 120;
+    // 【修改点】：删除了 targetK 变量
 
-    // 2. 循环解析参数 (从 1 开始，因为 0 是程序名)
+    // 3. 解析参数 (删除了 -k 的解析)
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
 
         if (arg == "-i" && i + 1 < argc) {
-            inputFile = dataDir + argv[++i]; // 获取下一个参数并跳过它
+            inputFile = argv[++i]; // 先只拿参数值
         } 
         else if (arg == "-o" && i + 1 < argc) {
-            outputFile = dataDir + argv[++i];
+            outputFile = argv[++i];
         } 
         else if (arg == "-m" && i + 1 < argc) {
             motion = argv[++i];
@@ -93,6 +93,7 @@ int main(int argc, char* argv[]) {
                 std::cerr << "错误: -s 后面必须接数字" << std::endl;
             }
         } 
+        // 【修改点】：删除了 else if (arg == "-k") 的块
         else if (arg == "--help" || arg == "-h") {
             std::cout << "用法: 程序名 [选项]\n"
                       << "选项:\n"
@@ -106,20 +107,35 @@ int main(int argc, char* argv[]) {
             std::cerr << "未知参数: " << arg << std::endl;
         }
     }
+
+    // 初始化UDP发送器
+    UdpSender sender("127.0.0.1", 9999);
     
+    // 【修改点】：不再设置 topk.K = targetK，使用类内的默认值或在 ACTION 中设置
+
+    // 4. 路径健壮性处理
+    // 如果 inputFile 包含 "/" (是路径) 则直接使用，否则加上 dataDir
+    string finalInputPath = (inputFile.find('/') != string::npos) ? inputFile : dataDir + inputFile;
+    string finalOutputPath = (outputFile.find('/') != string::npos) ? outputFile : dataDir + outputFile;
+
     vector<string> lines;
-    if (!ReadUtf8Lines(inputFile, lines)) {
-        std::cerr << "[ERROR] cannot open input file: " << inputFile << std::endl;
-        std::cerr << "[HINT ] create a UTF-8 file named '" << inputFile << "' with Chinese sentences." << std::endl;
-        return EXIT_FAILURE;
+    if (!ReadUtf8Lines(finalInputPath, lines)) {
+        // 如果失败，尝试直接读取（兼容某些特殊情况）
+        if (!ReadUtf8Lines(inputFile, lines)) {
+            std::cerr << "[ERROR] cannot open input file: " << finalInputPath << std::endl;
+            // 发送错误给前端让它停止转圈
+            sender.sendData("{\"error\": \"Cannot open input file\"}");
+            return EXIT_FAILURE;
+        }
     }
+    
     if (lines.empty()) {
         std::cerr << "[WARN ] input file is empty." << std::endl;
     }
 
-    std::ofstream out(outputFile, std::ios::binary);
+    std::ofstream out(finalOutputPath, std::ios::binary);
     if (!out.is_open()) {
-        std::cerr << "[ERROR] cannot open output file: " << outputFile << std::endl;
+        std::cerr << "[ERROR] cannot open output file: " << finalOutputPath << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -127,51 +143,72 @@ int main(int argc, char* argv[]) {
         std::cerr << "[ERROR] cannot load stopwords.";
         return 0;
     }
+
+    // 主循环
     for (int i = 0; i < lines.size(); i++) {
-    const string& sentence = lines[i];
+        const string& sentence = lines[i];
 
-    // ===== 1️⃣ 先判断 ACTION 行 =====
-    if (sentence.rfind("[ACTION]", 0) == 0) {
+        // ===== 1️⃣ 先判断 ACTION 行 =====
+        if (sentence.rfind("[ACTION]", 0) == 0) {
+            int K = parseK(sentence);
+            if (K <= 0) continue;   
+            
+            topk.K = K; // 设置为文件指定的 K
+            
+            if (!windows.empty()) {
+                out << windows.back().timestamp << "\n";
+            } else {
+                std::cerr << "[WARN] windows is empty, cannot access back()." << endl;
+            }
 
-        int K = parseK(sentence);
-        if (K <= 0) continue;   // 非法 ACTION，直接跳过
-
-        topk.K = K;
-
-        // ⚠️ 只有 windows 非空，才能访问 back()
-        if (!windows.empty()) {
-            out << windows.back().timestamp << "\n";
-        } else {
-            std::cerr << "[WARN] windows is empty, cannot access back()." << endl;
-        }
-
-        vector<pair<string, lli>> result = topk.getTopK();
-        if (result.empty()) {
-            std::cerr << "[WARN] TopK result is empty, skipping output." << endl;
+            vector<pair<string, lli>> result = topk.getTopK();
+            if (result.empty()) {
+                continue;
+            }
+            int count = 1;
+            for (auto& kv : result) {
+                out << count++ << ":" << kv.first << "(出现" << kv.second << "次)\n";
+            }
             continue;
         }
-        int count = 1;
-        for (auto& kv : result) {
-            out << count++ << ":"
-                << kv.first
-                << "(出现" << kv.second << "次)\n";
+
+        // ===== 2️⃣ 普通文本行 =====
+        EventToken e;
+        if (!parseLine(sentence, e)) {
+            continue;   
         }
-        continue;
-    }
 
-    // ===== 2️⃣ 普通文本行 =====
-    EventToken e;
-    if (!parseLine(sentence, e)) {
-        std::cerr << "[WARN] Failed to parse line: " << sentence << endl;
-        continue;   // 非法普通行，直接跳过
-    }
+        if (i == 0 || windows.empty()) {
+            init_win(e, motion);
+        } else {
+            update_win(e, stride, motion);
+        }
 
-    if (i == 0 || windows.empty()) {
-        init_win(e, motion);
-    } else {
-        update_win(e, stride, motion);
+        // ===== 3️⃣ 发送给前端 =====
+        if (!windows.empty()) {
+            // 【核心修改点】：保存现场 -> 修改 -> 获取 -> 恢复现场
+            
+            // 1. 保存当前的 K (可能是 ACTION 设置的，也可能是默认的)
+            int original_K = topk.K; 
+            
+            // 2. 强制设为 50 以满足前端“大数据量”需求
+            topk.K = 50; 
+            
+            // 3. 获取 Top-50
+            vector<pair<string, lli>> gui_result = topk.getTopK();
+            
+            // 4. 立即恢复原来的 K，保证不影响文件输出逻辑
+            topk.K = original_K; 
+
+            // 5. 发送
+            string current_time = windows.back().timestamp;
+            string json_data = generate_json(current_time, gui_result);
+            sender.sendData(json_data);
+        }
     }
-}
+    
+    sender.sendData("EOF");
     out.close();
+    cout << "Finished." << endl;
     return 0;
 }
