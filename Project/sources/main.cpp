@@ -1,25 +1,6 @@
 #include "../includefile/config.h"
 using namespace std;
 
-// 以二进制读取，确保不影响编码带来的影响。 
-bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines) {
-    std::ifstream ifs(filename, std::ios::binary);
-    if (!ifs.is_open()) {
-        return false;
-    }
-    std::string line;
-    while (std::getline(ifs, line)) {
-        // 处理 Windows 下 CRLF 的 \r
-        if (!line.empty() && line.back() == '\r') {
-            line.pop_back();
-        }
-        if (!line.empty()) {
-            lines.push_back(line);
-        }
-    }
-    return true;
-}
-
 int parseK(const string& line) {
     size_t pos = line.find("K=");
     if (pos == string::npos) return -1;
@@ -64,54 +45,51 @@ bool parseLine(const string& line, EventToken& e) {
 
 
 int main(int argc, char* argv[]) {
-    // 默认路径前缀
     const string dataDir = "data/";
-
-    std::string inputFile = "input1.txt"; // 默认文件名，稍后处理路径
+    std::string inputFile = "input1.txt";
     std::string outputFile = "output.txt";
-    std::string motion = "Cut(HMM)";
+    std::string userDictFile = "";
+    std::string extraStopFile = "";
+    
+    // 默认模式
+    std::string motion = "Cut(HMM)"; 
     lli stride = 120;
-    // 【修改点】：删除了 targetK 变量
+    
+    // 控制 UDP 发送的最大数量 (对应前端自定义最大K)
+    int udp_max_k = 50; 
 
-    // 3. 解析参数 (删除了 -k 的解析)
+    // 解析参数
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-
-        if (arg == "-i" && i + 1 < argc) {
-            inputFile = argv[++i]; // 先只拿参数值
-        } 
-        else if (arg == "-o" && i + 1 < argc) {
-            outputFile = argv[++i];
-        } 
-        else if (arg == "-m" && i + 1 < argc) {
-            motion = argv[++i];
-        } 
-        else if (arg == "-s" && i + 1 < argc) {
-            try {
-                stride = std::stoll(argv[++i]);
-            } catch (...) {
-                std::cerr << "错误: -s 后面必须接数字" << std::endl;
-            }
-        } 
-        // 【修改点】：删除了 else if (arg == "-k") 的块
-        else if (arg == "--help" || arg == "-h") {
-            std::cout << "用法: 程序名 [选项]\n"
-                      << "选项:\n"
-                      << "  -i <文件>    输入文件 (默认: input1.txt)\n"
-                      << "  -o <文件>    输出文件 (默认: output.txt)\n"
-                      << "  -m <动作>    动作类型 (默认: Cut(HMM))\n"
-                      << "  -s <数值>    步长 (默认: 120)\n";
-            return 0;
-        }
-        else {
-            std::cerr << "未知参数: " << arg << std::endl;
-        }
+        if (arg == "-i" && i + 1 < argc) inputFile = argv[++i];
+        else if (arg == "-o" && i + 1 < argc) outputFile = argv[++i];
+        else if (arg == "-s" && i + 1 < argc) stride = std::stoll(argv[++i]);
+        else if (arg == "-m" && i + 1 < argc) motion = argv[++i]; // 支持 Cut(HMM), CutForSearch 等
+        
+        // 新增参数
+        else if (arg == "-u" && i + 1 < argc) userDictFile = argv[++i]; // 用户词典路径
+        else if (arg == "-w" && i + 1 < argc) extraStopFile = argv[++i]; // 额外停用词路径
+        else if (arg == "-k" && i + 1 < argc) udp_max_k = std::stoi(argv[++i]); // UDP发送限制
     }
 
     // 初始化UDP发送器
     UdpSender sender("127.0.0.1", 9999);
     
-    // 【修改点】：不再设置 topk.K = targetK，使用类内的默认值或在 ACTION 中设置
+    // 1. 加载默认停用词
+    if (!loadstopwords("dict/stop_words.utf8")) {
+        std::cerr << "[ERROR] cannot load default stopwords.";
+        return 0;
+    }
+
+    // 2. 加载用户自定义停用词
+    if (!extraStopFile.empty()) {
+        loadstopwords(extraStopFile);
+    }
+
+    // 3. 加载用户自定义专用词 (Jieba)
+    if (!userDictFile.empty()) {
+        LoadUserDictFile(userDictFile);
+    }
 
     // 4. 路径健壮性处理
     // 如果 inputFile 包含 "/" (是路径) 则直接使用，否则加上 dataDir
@@ -139,10 +117,6 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    if (!loadstopwords("dict/stop_words.utf8")) {
-        std::cerr << "[ERROR] cannot load stopwords.";
-        return 0;
-    }
 
     // 主循环
     for (int i = 0; i < lines.size(); i++) {
@@ -186,23 +160,18 @@ int main(int argc, char* argv[]) {
 
         // ===== 3️⃣ 发送给前端 =====
         if (!windows.empty()) {
-            // 【核心修改点】：保存现场 -> 修改 -> 获取 -> 恢复现场
+            // 保存旧 K
+            int original_K = topk.K;
             
-            // 1. 保存当前的 K (可能是 ACTION 设置的，也可能是默认的)
-            int original_K = topk.K; 
+            // 设置为前端要求的最大限制 (例如用户想看 Top 100，这里就得设 >= 100)
+            topk.K = udp_max_k; 
             
-            // 2. 强制设为 50 以满足前端“大数据量”需求
-            topk.K = 50; 
-            
-            // 3. 获取 Top-50
             vector<pair<string, lli>> gui_result = topk.getTopK();
-            
-            // 4. 立即恢复原来的 K，保证不影响文件输出逻辑
-            topk.K = original_K; 
+            topk.K = original_K; // 恢复
 
-            // 5. 发送
             string current_time = windows.back().timestamp;
-            string json_data = generate_json(current_time, gui_result);
+            // 传入 udp_max_k 限制 JSON 大小
+            string json_data = generate_json(current_time, gui_result, udp_max_k);
             sender.sendData(json_data);
         }
     }

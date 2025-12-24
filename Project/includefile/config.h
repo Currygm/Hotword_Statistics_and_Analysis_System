@@ -1,6 +1,5 @@
 #ifndef CONFIG_H
 #define CONFIG_H
-// 防止头文件被重复包含
 
 #include <string>
 #include <vector>
@@ -13,35 +12,47 @@
 #include <queue>
 #include <cstdlib>
 #include <set>
-#include <sys/socket.h> // Linux Socket
-#include <arpa/inet.h>  // inet_addr
-#include <unistd.h>     // close
-#include <cstring>      // strlen
-#include <thread>       // sleep_for
 #include <iomanip>
 #include <chrono>
+#include <thread>
+
+// === 跨平台 Socket 兼容代码 ===
+#ifdef _WIN32
+    // Windows 平台
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib") 
+    
+    // 不要再 define close closesocket 了，会冲突！
+    
+    typedef int socklen_t;
+#else
+    // Linux / macOS 平台
+    #include <sys/socket.h>
+    #include <arpa/inet.h>
+    #include <unistd.h>     
+    #include <cstring>      
+#endif
+
 #include "cppjieba/Jieba.hpp"
+
 using namespace std;
 typedef long long lli;
-// 获取文本时每一帧文本
+
+// --- 结构体定义 ---
 struct EventToken {
     std::string timestamp;
     std::string words;
 };
-// 储存在哈希表中的每一帧文本(已分词) 
+
 struct stamp {
     string timestamp;
     vector<string> words;
 };
-// 在二叉树中统计词频
+
 struct node {
     string word;
     lli cnt;
-    // 自定义比较器，降序时用>，升序时用<
-    // 由于set或map遵循严格弱排序，如果认为a > b为false，并且b > a也为false，则认为二者相等
-    // 假如没有字典序的比较，如果出现了cnt相等的情形
-    // set就会认为两个元素是相等的，从而忽略后续插入的元素。
-    // 严格弱排序比较器的元素关系：反自反性，反对称性，传递性，唯一性
     bool operator>(const node& other) const{
         if (cnt != other.cnt) {
             return cnt > other.cnt;
@@ -49,7 +60,7 @@ struct node {
         return word < other.word;
     }
 };
-// 平衡二叉树实现TopK
+
 class TopK {
 public:
     lli K = 0;
@@ -59,16 +70,48 @@ public:
     vector<pair<string, lli>> getTopK();
 };
 
+// ================= UDP 发送类 =================
 class UdpSender {
     int sock;
     struct sockaddr_in serverAddr;
+#ifdef _WIN32
+    bool wsa_initialized = false;
+#endif
+
 public:
-    UdpSender(const char* ip, int port);
-    void sendData(const std::string& data);
-    ~UdpSender();
+    UdpSender(const char* ip, int port) {
+#ifdef _WIN32
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) == 0) {
+            wsa_initialized = true;
+        }
+#endif
+        sock = socket(AF_INET, SOCK_DGRAM, 0);
+        serverAddr.sin_family = AF_INET;
+        serverAddr.sin_port = htons(port);
+        serverAddr.sin_addr.s_addr = inet_addr(ip);
+    }
+
+    void sendData(const std::string& data) {
+        if (sock < 0) return;
+        sendto(sock, data.c_str(), (int)data.length(), 0, 
+               (struct sockaddr*)&serverAddr, sizeof(serverAddr));
+    }
+
+    ~UdpSender() {
+        if (sock >= 0) {
+#ifdef _WIN32
+            closesocket(sock); // Windows 专用关闭函数
+#else
+            close(sock);       // Linux 专用关闭函数
+#endif
+        }
+#ifdef _WIN32
+        if (wsa_initialized) WSACleanup();
+#endif
+    }
 };
 
-extern string generate_json(const string& timestamp, const vector<pair<string, lli>>& result);
 extern deque<stamp> windows;
 extern cppjieba::Jieba jieba;
 extern std::unordered_set<std::string> stop_words;
@@ -77,12 +120,15 @@ extern string back_of_deque;
 extern unordered_map<string, lli> words_count;
 extern TopK topk;
 
+void LoadUserDictFile(const string& filepath);
+bool ReadUtf8Lines(const std::string& filename, vector<string>& lines);
 bool loadstopwords(const std::string& filename);
-std::vector<std::string> cleaner(const std::vector<std::string>& line);
-vector<string> segmentation(std::string line, const std::string& motion);
+vector<string> cleaner(const vector<string>& line);
+vector<string> segmentation(string line, const string& motion);
 lli time_sub(string t1, string t2);
 void del_count(vector<string> words);
 void add_count(vector<string> words);
 void init_win(EventToken e, const string& motion);
 void update_win(EventToken e, lli stride, const string& motion);
+string generate_json(const std::string& timestamp, const std::vector<std::pair<std::string, lli>>& result, int limit_k);
 #endif

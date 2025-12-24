@@ -1,19 +1,42 @@
 #include "../includefile/config.h"
 using namespace std;
-// 以二进制读取，确保不影响编码带来的影响。
-bool loadstopwords(const string& filename) {
-    ifstream ifs(filename, ios::binary);
-    string word;
-    if (!ifs.is_open()) return false;
-    while(getline(ifs, word)) {
-        // Windows下，在二进制模式下getline()会保留'\r'需要手动清除。
-        // 文件中可能存在空行，或者文件末尾可能有一个换行符导致空行，所以需要判断
-        if(!word.empty() && word.back() == '\r') {
-            word.pop_back();
+// 以二进制读取，确保不影响编码带来的影响。 
+bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines) {
+    std::ifstream ifs(filename, std::ios::binary);
+    if (!ifs.is_open()) {
+        return false;
+    }
+    std::string line;
+    while (std::getline(ifs, line)) {
+        // 处理 Windows 下 CRLF 的 \r
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
         }
-        if(!word.empty()) stop_words.insert(word);
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
     }
     return true;
+}
+
+bool loadstopwords(const string& filename) {
+    vector<string> words;
+    if (ReadUtf8Lines(filename, words)) {
+        for (const auto& w : words) {
+            stop_words.insert(w);
+        }
+    }
+    return true;
+}
+
+// 加载用户专用词表
+void LoadUserDictFile(const string& filepath) {
+    vector<string> words;
+    if (ReadUtf8Lines(filepath, words)) {
+        for (const auto& w : words) {
+            jieba.InsertUserWord(w); 
+        }
+    }
 }
 
 bool isstopwords(const string& word) {
