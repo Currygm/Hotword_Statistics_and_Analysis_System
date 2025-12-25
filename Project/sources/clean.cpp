@@ -4,6 +4,7 @@ using namespace std;
 bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines) {
     std::ifstream ifs(filename, std::ios::binary);
     if (!ifs.is_open()) {
+        std::cerr << "Failed to open file: dict/jieba.dict.utf8" << std::endl;
         return false;
     }
     std::string line;
@@ -54,12 +55,33 @@ vector<string> cleaner(const vector<string>& line) {
     return result;
 }
 
-// int main () {
-//     const string s = "人工智能技术飞速，，。发展";
+// int main() {
+//     // 测试数据
+//     vector<string> test_cases = {
+//         "人工智能技术飞速，，。发展",  // 测试标点符号清理
+//         "这是一个测试句子。",          // 测试普通句子
+//         "12345，测试数字过滤！",       // 测试数字和标点
+//         "Hello, 世界！",              // 测试中英文混合
+//         "    前面有空格的句子",        // 测试前导空格
+//         "句子后面有空格    ",          // 测试尾随空格
+//         "重复的词语 重复的词语",       // 测试重复词语
+//         "特殊符号@#￥%……&*（）",       // 测试特殊符号
+//         "",                           // 测试空字符串
+//         "单词",                       // 测试单个词语
+//     };
+
+//     // 加载停用词
 //     if (!loadstopwords("dict/stop_words.utf8")) {
-//         cout << "error";
+//         cerr << "error: failed to load stopwords" << endl;
 //         return 0;
 //     }
-//     cout << segmentation(s, "Cut(HMM)") << endl;
+
+//     // 遍历测试数据并输出结果
+//     for (const string& test_case : test_cases) {
+//         cout << "Input: " << test_case << endl;
+//         cout << "Output: " << segmentation(test_case, "Cut(HMM)") << endl;
+//         cout << "---------------------------------" << endl;
+//     }
+
 //     return 0;
 // }

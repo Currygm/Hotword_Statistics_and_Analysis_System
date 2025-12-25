@@ -32,6 +32,7 @@ echo ""
 echo "==================================================="
 echo "[INFO] Step 3: Installing Dependencies (Offline)"
 echo "==================================================="
+echo "[INFO] This typically takes about 1 minute. Please wait..."
 
 # 【修改点】现在 Linux 也强制使用 packages 文件夹进行安装
 if [ -d "packages" ]; then
