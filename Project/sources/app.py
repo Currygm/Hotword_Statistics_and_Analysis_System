@@ -4,10 +4,10 @@ import json
 import pandas as pd
 import subprocess
 import os
-import platform  # <--- 新增模块
+import platform  
 import altair as alt
 
-# --- 0. 基础配置与目录初始化 ---
+# 0. 基础配置与目录初始化
 st.set_page_config(layout="wide", page_title="高级热词分析系统")
 
 TEMP_DIR = "temp"
@@ -16,28 +16,55 @@ if not os.path.exists(TEMP_DIR):
 
 st.title("🔥 高级热词统计与分析系统")
 
-# --- 侧边栏 ---
+# 侧边栏
 st.sidebar.header("1. 数据源")
 uploaded_file = st.sidebar.file_uploader("上传 input.txt", type=["txt"])
 
-# 【修改点1】将临时输入文件路径指向 temp 文件夹
 input_filename = os.path.join(TEMP_DIR, "temp_input.txt")
 
 st.sidebar.header("2. 核心参数")
 stride_val = st.sidebar.number_input("滑动步长 (Stride)", min_value=1, value=120)
 
 # 前端自定义K的最大值
-max_k_limit = st.sidebar.number_input("前端最大 Top-K 限制", min_value=10, max_value=500, value=50)
-gui_k_value = st.sidebar.slider("当前显示 Top-K", 1, max_k_limit, min(20, max_k_limit))
+max_k_limit = st.sidebar.number_input(
+    "前端最大 Top-K 限制", 
+    value=50, 
+    min_value=1
+)
+
+# 异常处理逻辑
+# 必须写在 slider 之前，防止 slider 因参数错误崩溃
+if max_k_limit <= 0:
+    st.sidebar.error("⚠️ 错误：K 值必须大于 0！")
+    st.stop()
+
+# 滑动条
+# 只有当上面检查通过后，才会执行这一行，保证 max_k_limit 肯定是正数
+gui_k_value = st.sidebar.slider(
+    "当前显示 Top-K", 
+    min_value=1, 
+    max_value=max_k_limit, 
+    value=min(20, max_k_limit)
+)
 
 # 分词模式选择
+VALID_MODES = ("Cut(HMM)", "Cut(NoHMM)", "CutForSearch")
+
 st.sidebar.header("3. 分词模式")
+
+# 2. 获取输入
 seg_mode = st.sidebar.selectbox(
     "选择分词算法",
-    ("Cut(HMM)", "Cut(NoHMM)", "CutForSearch"),
+    VALID_MODES,
     index=0,
     help="HMM: 新词识别能力强; NoHMM: 速度快但对新词弱; Search: 适合搜索引擎，分词更细"
 )
+
+# 3. 如果 seg_mode 不在白名单 VALID_MODES 中，立即报错并停止
+if seg_mode not in VALID_MODES:
+    st.sidebar.error(f"⚠️ 非法参数错误：不支持的分词模式 '{seg_mode}'。")
+    st.error(f"请在侧边栏选择有效的模式：{VALID_MODES}")
+    st.stop() # 立即终止程序，不再执行后续代码，保护后端不被非法参数攻击
 
 # 自定义词典
 with st.sidebar.expander("4. 自定义词典配置", expanded=False):
@@ -51,7 +78,7 @@ with st.sidebar.expander("4. 自定义词典配置", expanded=False):
 
 output_filename = st.sidebar.text_input("指定输出文件名", "my_output.txt")
 
-# --- 核心逻辑 ---
+# 核心逻辑
 def run_analysis():
     # 1. 保存上传数据
     if uploaded_file is not None:
@@ -87,8 +114,7 @@ def run_analysis():
         return
     sock.settimeout(5.0)
 
-    # 4. 构建命令 (【核心修复】：智能识别操作系统)
-    # ---------------------------------------------------------
+    # 4. 构建命令
     system_type = platform.system() # 获取操作系统类型
     
     executable_name = "main.out" # 默认 Linux/Mac
@@ -121,14 +147,12 @@ def run_analysis():
         "-m", seg_mode,
         "-u", temp_user_dict,
         "-w", temp_stop_words,
-        "-k_limit", str(max_k_limit)
+        "-k", str(max_k_limit)
     ]
-    # ---------------------------------------------------------
     
     status_text = st.empty()
     
     try:
-        # Windows 下 subprocess.Popen 不需要 shell=True (通常)
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     except Exception as e:
         st.error(f"启动失败: {e}")
@@ -179,11 +203,10 @@ if st.sidebar.button("🚀 开始高级分析"):
     with st.spinner("正在初始化分词引擎并计算..."):
         run_analysis()
 
-# --- 结果展示 (修改为上下布局) ---
+# 结果展示
 if 'processing_done' in st.session_state and st.session_state.processing_done:
     st.markdown("---")
     
-    # 【修改点3】去掉了 st.columns，直接按顺序书写
     
     # 1. 上方：交互式分析图表
     st.subheader("📊 交互式分析")
@@ -209,7 +232,7 @@ if 'processing_done' in st.session_state and st.session_state.processing_done:
                 y=alt.Y('count', title='频次'),
                 tooltip=['word', 'count'],
                 color=alt.value("#36A2EB")
-            ).properties(height=450) # 可以适当增加高度
+            ).properties(height=450) 
             
             st.altair_chart(chart, use_container_width=True)
         else:
@@ -217,7 +240,7 @@ if 'processing_done' in st.session_state and st.session_state.processing_done:
     else:
         st.warning("无数据记录")
 
-    st.markdown("---") # 添加一条分割线
+    st.markdown("---") 
 
     # 2. 下方：文件下载
     st.subheader("📂 结果下载")

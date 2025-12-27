@@ -10,9 +10,9 @@ cppjieba::Jieba jieba(           // 创建一个jieba对象
 );
 deque<stamp> windows;
 unordered_set<string> stop_words;   // 存放从文件中加载的停用词，具有唯一性，O(1)插入、删除、查找时间复杂度。
-string front_of_deque;
-string back_of_deque;
-unordered_map<string, lli> words_count;
-set<node, greater<node>> TopK::S;
-unordered_map<string, set<node, greater<node>>::iterator> TopK::pos;   // 记录每个词在二叉树中的迭代器
-TopK topk;
+string front_of_deque;              // 记录当前时间窗口的最前端
+string back_of_deque;               // 记录当前时间窗口的最后端
+unordered_map<string, lli> words_count;   // 记录词频
+set<node, greater<node>> TopK::S;         // 用于实现Top-K的set
+unordered_map<string, set<node, greater<node>>::iterator> TopK::pos;   // 记录每个词在set中的迭代器
+TopK topk;   // 定义topk对象

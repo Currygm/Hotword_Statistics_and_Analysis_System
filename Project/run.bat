@@ -3,7 +3,7 @@ chcp 65001 >nul
 setlocal
 
 :: ==========================================
-:: 核心修复：锁定工作目录
+:: 切换到脚本所在目录
 :: ==========================================
 cd /d "%~dp0"
 
@@ -38,14 +38,38 @@ echo ===================================================
 echo [INFO] Step 3: Installing Dependencies...
 echo ===================================================
 
-:: 【修复点】去掉了 echo 中的圆括号，防止语法解析错误
+:: --- 【修改开始】 版本检测与安装逻辑 ---
+
+:: 1. 获取当前 venv 中的 Python 版本 (例如 3.11)
+for /f "delims=" %%v in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set CURRENT_VER=%%v
+
+echo [INFO] Current Python version in venv: %CURRENT_VER%
+echo [INFO] Target offline package version: 3.11
+
+:: 2. 设置安装模式，默认为 ONLINE
+set INSTALL_MODE=ONLINE
+
+:: 3. 如果 packages 存在 且 版本是 3.11，则切换为 OFFLINE
 if exist packages (
-    echo [INFO] Installing from local packages - Offline Mode...
+    if "%CURRENT_VER%"=="3.11" (
+        set INSTALL_MODE=OFFLINE
+    )
+)
+
+:: 4. 根据模式执行安装
+if "%INSTALL_MODE%"=="OFFLINE" (
+    echo [INFO] Version matches 3.11. Installing from local packages - Offline Mode...
     pip install --no-index --find-links=./packages -r requirements.txt
 ) else (
-    echo [WARN] Packages folder missing. Installing online...
-    pip install -r requirements.txt
+    :: 打印具体原因
+    if "%CURRENT_VER%" neq "3.11" echo [WARN] Python version mismatch! Local packages require 3.11.
+    if not exist packages echo [WARN] 'packages' folder missing.
+    
+    echo [INFO] Switching to online installation using Tsinghua Mirror...
+    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 )
+
+:: --- 【修改结束】 ---
 
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install dependencies.

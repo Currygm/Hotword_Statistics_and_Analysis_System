@@ -4,7 +4,7 @@ using namespace std;
 bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines) {
     std::ifstream ifs(filename, std::ios::binary);
     if (!ifs.is_open()) {
-        std::cerr << "Failed to open file: dict/jieba.dict.utf8" << std::endl;
+        std::cerr << "[ERROR] Failed to open file: " << filename << std::endl;
         return false;
     }
     std::string line;
@@ -20,6 +20,7 @@ bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines)
     return true;
 }
 
+// 加载停用词列表
 bool loadstopwords(const string& filename) {
     vector<string> words;
     if (ReadUtf8Lines(filename, words)) {
@@ -40,10 +41,12 @@ void LoadUserDictFile(const string& filepath) {
     }
 }
 
+// 判断是否为停用词
 bool isstopwords(const string& word) {
     return stop_words.count(word) > 0;
 }
 
+// 对所给行进行停用词清洗
 vector<string> cleaner(const vector<string>& line) {
     vector<string> result;
     lli length = line.size();
@@ -53,6 +56,26 @@ vector<string> cleaner(const vector<string>& line) {
         }
     }
     return result;
+}
+
+// 分词模块
+vector<string> segmentation(string line, const string& motion) {
+
+    vector<string> sentence;
+    if (motion == "Cut(HMM)") {
+        jieba.Cut(line, sentence, true);
+    }
+    else if (motion == "Cut(NoHMM)") {
+        jieba.Cut(line, sentence, false);
+    }
+    else if (motion == "CutForSearch"){
+        jieba.CutForSearch(line, sentence);
+    }
+    else {
+        cerr << "[ERROR] " << motion << "is not a motion";
+    }
+    sentence = cleaner(sentence);
+    return sentence;
 }
 
 // int main() {

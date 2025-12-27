@@ -1,6 +1,7 @@
 #include "../includefile/config.h"
 using namespace std;
 
+// 更新Top-K set
 void TopK::update(const string& w) {
     // 删除旧节点（如果有）
     if (pos.find(w) != pos.end()) {
@@ -21,6 +22,7 @@ void TopK::update(const string& w) {
     }
 }
 
+// 获取当前Top-K
 vector<pair<string, lli>> TopK::getTopK() {
     vector<pair<string, lli>> result;
     auto it = S.begin();

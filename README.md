@@ -17,11 +17,13 @@ Project/
 ├── packages/             # 离线 Python 依赖包 (用于离线安装依赖)
 ├── .streamlit/           # 对streamlit库添加配置
 ├── temp/                 # 用于存储前端传给后端的数据临时文件
+├── test/                 # 用于性能测试创建的数据文件和输出文件
 ├── xmake.lua             # xmake 构建配置
 ├── requirements.txt      # Python 依赖清单
 ├── run.bat               # Windows 一键启动脚本
 ├── run.sh                # Linux/macOS 一键启动脚本
 ├── website.png           # README中引用的图片
+├── System_Architecture.png #展示整个系统架构
 └── README.md             # 说明文档
 ```
 
@@ -36,7 +38,7 @@ Project/
 pip install xmake
 ```
 
-- **Python环境**: 可以运行`run.sh`或`run.bat`脚本一键配置，具体见方法一。
+- **Python环境**: 要求`Python > 3.9`，建议`Python == 3.11`。所需要的相关依赖可以运行`run.sh`或`run.bat`脚本一键配置，具体见方法一。
 
 ---
 
@@ -61,11 +63,13 @@ pip install xmake
 **脚本自动执行流程：**
 1.  检查 Python 环境。
 2.  创建并激活虚拟环境 (`venv`)。
-3.  安装依赖（优先使用 `packages/` 离线包）。
+3.  安装依赖。
 4.  调用 `xmake` 编译 C++ 后端（如果没有 xmake，Linux 脚本会尝试用 g++ 兜底）。
 5.  自动启动浏览器打开 Streamlit 前端界面。
 
-整个执行流程可能需要一分钟左右，执行完成后会自动跳转Web网页，或显示如下：
+packages/中提供了支持`Python=3.11`的依赖离线安装包，预计安装时间为1分钟；
+如果`Python`版本为其他版本，则运行脚本自动通过清华镜像源下载安装对应版本的依赖，预计时长为2分钟。
+执行完成后会自动跳转Web网页，或显示如下：
 ```bash
   You can now view your Streamlit app in your browser.
 
@@ -147,7 +151,7 @@ xmake run main -i data/input1.txt -o result.txt -s 60 -m CutForSearch -k 100
     *   所有输入文件（`input.txt`）和字典文件建议使用 **UTF-8 (无 BOM)** 编码，否则中文可能会乱码。
 
 2.  **端口冲突**
-    *   系统使用 **UDP 8501** 端口进行通信。如果启动失败并提示端口被占用，请关闭占用该端口的程序或稍后重试。
+    *   系统使用 **UDP 9999** 端口进行通信。如果启动失败并提示端口被占用，请关闭占用该端口的程序或稍后重试。
 
 3.  **临时文件**
     *   系统运行时会在根目录下生成 `temp/` 文件夹，用于存放前端传递给后端的临时字典。**请勿在运行过程中删除此文件夹**。

@@ -16,7 +16,7 @@
 #include <chrono>
 #include <thread>
 
-// === 跨平台 Socket 兼容代码 ===
+// 跨平台 Socket 兼容代码
 #ifdef _WIN32
     // Windows 平台
     #include <winsock2.h>
@@ -39,7 +39,7 @@
 using namespace std;
 typedef long long lli;
 
-// --- 结构体定义 ---
+// 结构体定义
 struct EventToken {
     std::string timestamp;
     std::string words;
@@ -70,7 +70,7 @@ public:
     vector<pair<string, lli>> getTopK();
 };
 
-// ================= UDP 发送类 =================
+// UDP 发送类
 class UdpSender {
     int sock;
     struct sockaddr_in serverAddr;
