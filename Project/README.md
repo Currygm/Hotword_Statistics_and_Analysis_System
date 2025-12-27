@@ -36,7 +36,7 @@ Project/
 
 ## 2. 环境准备
 
-- **C++环境**: 确保安装了 `xmake` 和 C++ 编译器 (GCC/Clang/MSVC)。可通过脚本自动安装`xmake`。
+- **C++环境**: 确保安装了 `xmake` 和 C++ 编译器 (GCC/Clang/MSVC)。所提供的运行脚本提供了多种方式自动安装`xmake`，如果依然无法正常安装`xmake`，可以到<https://xmake.io>手动安装。
 
 - **Python环境**: 要求`Python > 3.9`，建议`Python == 3.11`。所需要的相关依赖可以运行`run.sh`或`run.bat`脚本一键配置，具体见方法一。
 
@@ -64,7 +64,7 @@ Project/
 1.  检查 Python 环境。
 2.  创建并激活虚拟环境 (`venv`)。
 3.  安装依赖。
-4.  调用 `xmake` 编译 C++ 后端（如果没有 xmake，Linux 脚本会尝试用 g++ 兜底）。
+4.  调用 `xmake` 编译 C++ 后端（如果没有 xmake，脚本会尝试用 g++ 兜底）。
 5.  自动启动浏览器打开 Streamlit 前端界面。
 
 packages/中提供了支持`Python=3.11`的依赖离线安装包，预计安装时间为1分钟；
@@ -89,6 +89,13 @@ packages/中提供了支持`Python=3.11`的依赖离线安装包，预计安装�
 在项目根目录下执行：
 ```bash
 xmake
+
+# 如果xmake无法安装，可运行下列指令检查C++后端
+# Windows
+g++ sources/*.cpp -o main.out -Iincludefile -std=c++14 -O3 -lws2_32 -D_CRT_SECURE_NO_WARNINGS
+
+# Linux/macOS
+g++ sources/*.cpp -o main.out -Iincludefile -std=c++14 -O3 -lpthread
 ```
 编译成功后，可执行文件（`main.out.exe` 或 `main.out`）将生成在当前根目录下。
 
@@ -108,6 +115,8 @@ xmake run main.out -i data/input1.txt -o my_output.txt -s 120
 # -w: 额外停用词路径
 # -k: UDP发送的最大Top-K数量
 xmake run main -i data/input1.txt -o result.txt -s 60 -m CutForSearch -k 100
+
+# 无xmake则用直接用./main.out + 参数即可
 ```
 以上输入输出文件也可以直接写文件名称，程序会自动识别是**文件名**或**文件路径**，如果是文件名则默认输入输出文件都在data/文件夹中。
 

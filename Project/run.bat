@@ -13,7 +13,7 @@ echo ===================================================
 
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Python not found!
+    echo [ERROR] Python not found.
     echo [HINT] Please install Python and add it to PATH.
     pause
     exit /b 1
@@ -24,15 +24,15 @@ echo ===================================================
 echo [INFO] Step 2: Setting up Virtual Environment...
 echo ===================================================
 
-:: 修改点 1：如果存在 venv 则强行删除，实现“覆盖”
 if exist venv (
-    echo [INFO] Old venv detected. Removing to perform a fresh install...
+    echo [INFO] Old venv detected. Removing for a fresh install...
     rd /s /q venv
 )
 
 echo [INFO] Creating new venv...
 python -m venv venv
 
+:: 激活虚拟环境
 call venv\Scripts\activate
 
 echo.
@@ -40,31 +40,25 @@ echo ===================================================
 echo [INFO] Step 3: Installing Dependencies...
 echo ===================================================
 
-:: 1. 获取当前 venv 中的 Python 版本 (例如 3.11)
+:: 获取 Python 版本 (例如 3.11)
 for /f "delims=" %%v in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set CURRENT_VER=%%v
 
 echo [INFO] Current Python version in venv: %CURRENT_VER%
 echo [INFO] Target offline package version: 3.11
 
-:: 2. 设置安装模式，默认为 ONLINE
-set INSTALL_MODE=ONLINE
-
-:: 3. 如果 packages 存在 且 版本是 3.11，切换为 OFFLINE
-if exist packages (
-    if "%CURRENT_VER%"=="3.11" (
-        set INSTALL_MODE=OFFLINE
+set "MODE=ONLINE"
+if "%CURRENT_VER%"=="3.11" (
+    if exist packages (
+        set "MODE=OFFLINE"
     )
 )
 
-:: 4. 根据模式执行安装
-if "%INSTALL_MODE%"=="OFFLINE" (
-    echo [INFO] Version matches 3.11. Installing from local packages - Offline Mode...
+if "%MODE%"=="OFFLINE" (
+    echo [INFO] Installing from local packages - Offline Mode
     pip install --no-index --find-links=./packages -r requirements.txt
 ) else (
-    if "%CURRENT_VER%" neq "3.11" echo [WARN] Python version mismatch! Local packages require 3.11.
-    if not exist packages echo [WARN] 'packages' folder missing.
-    
-    echo [INFO] Switching to online installation using Tsinghua Mirror...
+    echo [INFO] Version mismatch or packages folder missing.
+    echo [INFO] Switching to online installation - Tsinghua Mirror
     pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 )
 
@@ -76,29 +70,37 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ===================================================
-echo [INFO] Step 4: Checking & Installing xmake...
+echo [INFO] Step 4: Checking and Installing xmake...
 echo ===================================================
 
-:: 修改点 2：自动安装 xmake 逻辑
+where xmake >nul 2>&1
+if %errorlevel% equ 0 goto :XMAKE_READY
+
+echo [INFO] xmake not found. Starting automatic installation...
+
+:: 1. 尝试 winget
+where winget >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [INFO] Attempting installation via winget...
+    winget install xmake-io.xmake --silent --accept-package-agreements --accept-source-agreements
+)
+
+:: 2. 如果依然没有，试 PowerShell
 where xmake >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [INFO] xmake not found. Starting automatic installation...
-    :: 调用官方 PowerShell 安装脚本
-    powershell -Command "Invoke-Expression (Invoke-RestMethod https://xmake.io/install.ps1)"
-    
-    :: 将安装路径加入当前会话的 PATH (默认路径通常在 %USERPROFILE%\.xmake\bin)
-    set "PATH=%PATH%;%USERPROFILE%\.xmake\bin"
-    
-    :: 再次验证安装
-    where xmake >nul 2>&1
-    if %errorlevel% neq 0 (
-        echo [ERROR] Automatic xmake installation failed. Please install it manually from https://xmake.io
-        pause
-        exit /b 1
-    )
-    echo [INFO] xmake installed successfully.
+    echo [INFO] Falling back to official PowerShell installer...
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-Expression (Invoke-RestMethod https://xmake.io/install.ps1)"
+)
+
+:: 注入安装路径
+set "PATH=%PATH%;%ProgramFiles%\xmake;%LOCALAPPDATA%\xmake;%USERPROFILE%\.xmake\bin"
+
+:XMAKE_READY
+where xmake >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [INFO] xmake is ready.
 ) else (
-    echo [INFO] xmake is already installed.
+    echo [WARN] All xmake installation methods failed.
 )
 
 echo.
@@ -106,13 +108,39 @@ echo ===================================================
 echo [INFO] Step 5: Compiling C++ Project...
 echo ===================================================
 
+:: 优先检查 xmake
+where xmake >nul 2>&1
+if %errorlevel% neq 0 goto :TRY_GPP
+
+echo [INFO] Using xmake to compile...
+call xmake f -y
 call xmake clean >nul 2>&1
 call xmake -y
+if %errorlevel% equ 0 goto :COMPILE_SUCCESS
+echo [ERROR] xmake compilation failed.
+pause
+exit /b 1
+
+:TRY_GPP
+:: 检查 g++
+where g++ >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [ERROR] Compilation failed.
+    echo [ERROR] Neither xmake nor g++ found.
+    echo [HINT] Please install a C++ compiler or xmake.
     pause
     exit /b 1
 )
+
+echo [WARN] xmake not found. Using g++ fallback...
+g++ sources\*.cpp -o main.out -Iincludefile -std=c++14 -O3 -lws2_32 -D_CRT_SECURE_NO_WARNINGS
+if %errorlevel% neq 0 (
+    echo [ERROR] g++ compilation failed.
+    pause
+    exit /b 1
+)
+
+:COMPILE_SUCCESS
+echo [INFO] Compilation successful.
 
 echo.
 echo ===================================================
@@ -123,7 +151,7 @@ if exist sources\app.py (
     echo [INFO] Starting Streamlit...
     streamlit run sources/app.py
 ) else (
-    echo [ERROR] sources/app.py not found!
+    echo [ERROR] sources/app.py not found.
     pause
     exit /b 1
 )

@@ -1,4 +1,6 @@
 #!/bin/bash
+# 注意：set -e 会导致任何指令失败时立即退出，为了允许失败后切换逻辑，
+# 我们在可能失败的步骤后做了特殊处理。
 set -e
 
 echo "==================================================="
@@ -19,7 +21,7 @@ echo ""
 echo "==================================================="
 echo "[INFO] Step 2: Setting up Virtual Environment"
 echo "==================================================="
-# 修改点：如果存在 venv 则删除，实现“覆盖”效果
+# 如果存在 venv 则删除，实现“覆盖”效果
 if [ -d "venv" ]; then
     echo "[INFO] Old venv detected. Removing to perform a fresh install..."
     rm -rf venv
@@ -59,22 +61,64 @@ echo ""
 echo "==================================================="
 echo "[INFO] Step 4: Checking & Installing xmake"
 echo "==================================================="
-# 修改点：自动安装 xmake 逻辑
+
+# --- 逻辑 A: 原有的 apt 安装逻辑 (不做变动) ---
 if ! command -v xmake &>/dev/null; then
-    echo "[INFO] xmake not found. Starting automatic installation..."
-    # 检查是否有 curl
+    echo "[INFO] xmake not found. Starting automatic installation via apt..."
+    
+    if command -v apt-get &>/dev/null; then
+        # 这里用 ( ) 包裹并配合 || true 是为了防止 set -e 在 apt 失败时直接终止脚本，
+        # 从而让我们有机会进入下面的逻辑 B。
+        (
+            # 1. 添加 PPA
+            if command -v add-apt-repository &>/dev/null; then
+                echo "[INFO] Adding xmake PPA..."
+                sudo add-apt-repository ppa:xmake-io/xmake -y
+            fi
+            
+            echo "[INFO] Updating apt-get..."
+            sudo apt-get update
+            
+            # 2. 先尝试删除可能导致冲突的系统自带旧版包
+            echo "[INFO] Removing potential conflicting old packages (xmake-data)..."
+            sudo apt-get remove xmake-data xmake -y >/dev/null 2>&1 || true
+            
+            # 3. 安装新版
+            echo "[INFO] Installing latest xmake via apt..."
+            sudo apt-get install xmake -y
+        ) || echo "[WARN] apt-get installation process encountered errors."
+    else
+        echo "[WARN] 'apt' package manager not found. Skipping apt logic."
+    fi
+fi
+
+# --- 逻辑 B: 新增的备选方案 (仅当上述逻辑 A 失败或跳过后执行) ---
+if ! command -v xmake &>/dev/null; then
+    echo "[INFO] xmake still not found. Falling back to official web installer..."
     if command -v curl &>/dev/null; then
         curl -fsSL https://xmake.io/shget.lua | bash
-        # 安装后通常需要将路径加入当前会话
+        # 官网脚本通常安装在 ~/.local/bin，我们需要更新当前会话的路径
         export PATH=$PATH:$HOME/.local/bin
-        # 尝试加载 xmake 环境变量配置文件
+        # 尝试加载 xmake 生成的 profile
         [ -f ~/.xmake/profile ] && source ~/.xmake/profile || true
+    elif command -v wget &>/dev/null; then
+        wget https://xmake.io/shget.lua -O shget.lua
+        bash shget.lua
+        export PATH=$PATH:$HOME/.local/bin
+        [ -f ~/.xmake/profile ] && source ~/.xmake/profile || true
+        rm shget.lua
     else
-        echo "[ERROR] 'curl' is required to install xmake. Please install curl first."
-        # 如果没有 curl，尝试跳过安装使用下面的 g++ 备选方案
+        echo "[ERROR] Neither 'apt', 'curl' nor 'wget' could install xmake."
+        echo "[HINT] Please install xmake manually: https://xmake.io"
+        # 不退出，尝试下一步的 g++ 兜底
     fi
+fi
+
+# 最终检测状态显示
+if command -v xmake &>/dev/null; then
+    echo "[INFO] xmake is ready: $(xmake --version | head -n 1)"
 else
-    echo "[INFO] xmake is already installed."
+    echo "[WARN] xmake is not available in PATH."
 fi
 
 echo ""
@@ -83,7 +127,8 @@ echo "[INFO] Step 5: Compiling C++ Project"
 echo "==================================================="
 if command -v xmake &>/dev/null; then
     echo "[INFO] Compiling with xmake..."
-    xmake -y # -y 自动确认
+    xmake f -y
+    xmake -y
 else
     echo "[WARN] xmake still not available. Using g++ fallback..."
     g++ sources/*.cpp -o main.out -Iincludefile -lpthread -std=c++11 -O3
