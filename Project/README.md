@@ -13,7 +13,7 @@ Project/
 ├── data/                 # 存放默认测试数据 (如 input1.txt)
 ├── dict/                 # 存放分词词典 (jieba.dict.utf8 等)
 ├── includefile/          # C++ 头文件 (config.h 等)
-├── sources/              # C++ 源文件 (.cpp) 及 app.py
+├── sources/              # C++ 源文件, Python文件以及核心单元测试
 ├── packages/             # 离线 Python 依赖包 (用于离线安装依赖)
 ├── .streamlit/           # 对streamlit库添加配置
 ├── temp/                 # 用于存储前端传给后端的数据临时文件
@@ -24,7 +24,10 @@ Project/
 ├── run.sh                # Linux/macOS 一键启动脚本
 ├── website.png           # README中引用的图片
 ├── System_Architecture.png #展示整个系统架构
-└── README.md             # 说明文档
+├── README.md             # 说明文档
+├── README.pdf            # 便于快速阅读说明文档
+├── 性能测试报告.pdf       
+└── 系统设计文档.pdf
 ```
 
 确认无误后进入Project目录。本项目内使用的所有路径都是**相对路径**，但为了避免可能发生的错误，**请确保当前目录路径无中文**。
@@ -33,10 +36,7 @@ Project/
 
 ## 2. 环境准备
 
-- **C++环境**: 确保安装了 `xmake` 和 C++ 编译器 (GCC/Clang/MSVC)。执行以下指令安装`xmake`
-```bash
-pip install xmake
-```
+- **C++环境**: 确保安装了 `xmake` 和 C++ 编译器 (GCC/Clang/MSVC)。可通过脚本自动安装`xmake`。
 
 - **Python环境**: 要求`Python > 3.9`，建议`Python == 3.11`。所需要的相关依赖可以运行`run.sh`或`run.bat`脚本一键配置，具体见方法一。
 

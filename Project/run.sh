@@ -19,12 +19,14 @@ echo ""
 echo "==================================================="
 echo "[INFO] Step 2: Setting up Virtual Environment"
 echo "==================================================="
-if [ ! -d "venv" ]; then
-    echo "[INFO] Creating venv..."
-    $PYTHON_CMD -m venv venv
-else
-    echo "[INFO] venv already exists."
+# 修改点：如果存在 venv 则删除，实现“覆盖”效果
+if [ -d "venv" ]; then
+    echo "[INFO] Old venv detected. Removing to perform a fresh install..."
+    rm -rf venv
 fi
+
+echo "[INFO] Creating new venv..."
+$PYTHON_CMD -m venv venv
 
 # 激活环境
 source venv/bin/activate
@@ -34,18 +36,11 @@ echo "==================================================="
 echo "[INFO] Step 3: Installing Dependencies"
 echo "==================================================="
 
-# --- 【修改开始】 版本检测与安装逻辑 ---
-
-# 获取当前虚拟环境的 Python 主版本.次版本 (例如 3.11)
-# 使用 python -c 确保获取的是激活后的环境版本
 CURRENT_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 
 echo "[INFO] Current Python version in venv: $CURRENT_VER"
 echo "[INFO] Target offline package version: 3.11"
 
-# 判断逻辑：
-# 1. 如果版本是 3.11 且 packages 目录存在 -> 离线安装
-# 2. 否则 (版本不对 或 目录不存在) -> 在线安装 (清华源)
 if [[ "$CURRENT_VER" == "3.11" ]] && [ -d "packages" ]; then
     echo "[INFO] Version matches 3.11. Installing from local packages (Offline)..."
     pip install --no-index --find-links=./packages -r requirements.txt
@@ -59,23 +54,44 @@ else
     echo "[INFO] Switching to online installation using Tsinghua Mirror..."
     pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 fi
-# --- 【修改结束】 ---
 
 echo ""
 echo "==================================================="
-echo "[INFO] Step 4: Compiling C++ Project"
+echo "[INFO] Step 4: Checking & Installing xmake"
+echo "==================================================="
+# 修改点：自动安装 xmake 逻辑
+if ! command -v xmake &>/dev/null; then
+    echo "[INFO] xmake not found. Starting automatic installation..."
+    # 检查是否有 curl
+    if command -v curl &>/dev/null; then
+        curl -fsSL https://xmake.io/shget.lua | bash
+        # 安装后通常需要将路径加入当前会话
+        export PATH=$PATH:$HOME/.local/bin
+        # 尝试加载 xmake 环境变量配置文件
+        [ -f ~/.xmake/profile ] && source ~/.xmake/profile || true
+    else
+        echo "[ERROR] 'curl' is required to install xmake. Please install curl first."
+        # 如果没有 curl，尝试跳过安装使用下面的 g++ 备选方案
+    fi
+else
+    echo "[INFO] xmake is already installed."
+fi
+
+echo ""
+echo "==================================================="
+echo "[INFO] Step 5: Compiling C++ Project"
 echo "==================================================="
 if command -v xmake &>/dev/null; then
-    xmake
+    echo "[INFO] Compiling with xmake..."
+    xmake -y # -y 自动确认
 else
-    echo "[WARN] xmake not found. Using g++ fallback..."
-    # 增加 -O3 优化以提升性能
+    echo "[WARN] xmake still not available. Using g++ fallback..."
     g++ sources/*.cpp -o main.out -Iincludefile -lpthread -std=c++11 -O3
 fi
 
 echo ""
 echo "==================================================="
-echo "[INFO] Step 5: Launching Streamlit App"
+echo "[INFO] Step 6: Launching Streamlit App"
 echo "==================================================="
 
 if [ -f "main.out" ]; then
