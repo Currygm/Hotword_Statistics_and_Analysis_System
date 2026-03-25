@@ -8,6 +8,7 @@ cppjieba::Jieba jieba(           // 创建一个jieba对象
     "dict/idf.utf8",             // IDF 统计文件
     "dict/stop_words.utf8"       // 停用词表
 );
+cppjieba::TextRankExtractor textrank(jieba, "dict/stop_words.utf8"); // TextRank关键词提取器
 deque<stamp> windows;
 unordered_set<string> stop_words;   // 存放从文件中加载的停用词，具有唯一性，O(1)插入、删除、查找时间复杂度。
 string front_of_deque;              // 记录当前时间窗口的最前端

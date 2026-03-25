@@ -48,7 +48,7 @@ gui_k_value = st.sidebar.slider(
 )
 
 # 分词模式选择
-VALID_MODES = ("Cut(HMM)", "Cut(NoHMM)", "CutForSearch")
+VALID_MODES = ("Cut(HMM)", "Cut(NoHMM)", "CutForSearch", "TF-IDF", "TextRank")
 
 st.sidebar.header("3. 分词模式")
 
@@ -57,7 +57,7 @@ seg_mode = st.sidebar.selectbox(
     "选择分词算法",
     VALID_MODES,
     index=0,
-    help="HMM: 新词识别能力强; NoHMM: 速度快但对新词弱; Search: 适合搜索引擎，分词更细"
+    help="HMM: 新词识别能力强; NoHMM: 速度快但对新词弱; Search: 适合搜索引擎，分词更细; TF-IDF: 基于TF-IDF算法的关键词提取（最先进技术）; TextRank: 基于图算法的关键词提取（最先进技术）"
 )
 
 # 3. 如果 seg_mode 不在白名单 VALID_MODES 中，立即报错并停止
