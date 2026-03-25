@@ -35,6 +35,7 @@
 #endif
 
 #include "cppjieba/Jieba.hpp"
+#include "cppjieba/TextRankExtractor.hpp"
 
 using namespace std;
 typedef long long lli;
@@ -114,6 +115,7 @@ public:
 
 extern deque<stamp> windows;
 extern cppjieba::Jieba jieba;
+extern cppjieba::TextRankExtractor textrank;
 extern std::unordered_set<std::string> stop_words;
 extern string front_of_deque;
 extern string back_of_deque;

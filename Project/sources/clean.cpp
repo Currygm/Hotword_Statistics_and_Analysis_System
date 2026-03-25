@@ -1,5 +1,8 @@
 #include "../includefile/config.h"
 using namespace std;
+
+// 每行文本使用TF-IDF或TextRank提取关键词时，提取的最大数量
+static const size_t KEYWORD_EXTRACT_TOPN = 10;
 // 以二进制读取，确保不影响编码带来的影响。 
 bool ReadUtf8Lines(const std::string& filename, std::vector<std::string>& lines) {
     std::ifstream ifs(filename, std::ios::binary);
@@ -51,7 +54,7 @@ vector<string> cleaner(const vector<string>& line) {
     vector<string> result;
     lli length = line.size();
     for(lli i = 0; i < length; i++) {
-        if (!isstopwords(line[i])) {
+        if (!line[i].empty() && !isstopwords(line[i])) {
             result.push_back(line[i]);
         }
     }
@@ -70,6 +73,14 @@ vector<string> segmentation(string line, const string& motion) {
     }
     else if (motion == "CutForSearch"){
         jieba.CutForSearch(line, sentence);
+    }
+    else if (motion == "TF-IDF") {
+        // 使用TF-IDF算法提取关键词（当前最先进的关键词提取技术之一）
+        jieba.extractor.Extract(line, sentence, KEYWORD_EXTRACT_TOPN);
+    }
+    else if (motion == "TextRank") {
+        // 使用TextRank图算法提取关键词（当前最先进的关键词提取技术之一）
+        textrank.Extract(line, sentence, KEYWORD_EXTRACT_TOPN);
     }
     else {
         cerr << "[ERROR] " << motion << "is not a motion";
